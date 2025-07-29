@@ -10,6 +10,7 @@ from urllib.parse import parse_qs
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class FrankEnergyApi:
     """Define the Frank Energy API."""
 
@@ -17,7 +18,7 @@ class FrankEnergyApi:
         """Initialise the API."""
         _LOGGER.warning("__init__")
         self._client_id = "9b63be56-54d0-4706-bfb5-69707d4f4f89"
-        self._redirect_uri = 'eol://oauth/redirect'
+        self._redirect_uri = "eol://oauth/redirect"
         self._url_token_base = "https://energyonlineb2cprod.b2clogin.com/energyonlineb2cprod.onmicrosoft.com"
         self._url_data_base = "https://mobile-api.energyonline.co.nz"
         self._p = "B2C_1A_signin"
@@ -46,14 +47,14 @@ class FrankEnergyApi:
         jar = aiohttp.CookieJar(quote_cookie=False)
         async with aiohttp.ClientSession(cookie_jar=jar) as session:
             url = f"{self._url_token_base}/oauth2/v2.0/authorize"
-            scope = f'openid offline_access {self._client_id}'
+            scope = f"openid offline_access {self._client_id}"
             params = {
-                'p': self._p,
-                'client_id': self._client_id,
-                'response_type': 'code',
-                'response_mode': 'query',
-                'scope': scope,
-                'redirect_uri': self._redirect_uri,
+                "p": self._p,
+                "client_id": self._client_id,
+                "response_type": "code",
+                "response_mode": "query",
+                "scope": scope,
+                "redirect_uri": self._redirect_uri,
             }
 
             _LOGGER.debug("Step: 1")
@@ -70,7 +71,7 @@ class FrankEnergyApi:
                 "email": self._email,
             }
             headers = {
-                'X-CSRF-TOKEN': csrf,
+                "X-CSRF-TOKEN": csrf,
             }
             _LOGGER.debug("Step: 2")
             async with session.post(url, headers=headers, data=payload) as response:
@@ -78,14 +79,14 @@ class FrankEnergyApi:
 
             url = f"{self._url_token_base}/{self._p}/api/SelfAsserted/confirmed"
             params = {
-                'csrf_token': csrf,
-                'tx': trans_id,
-                'p': self._p,
+                "csrf_token": csrf,
+                "tx": trans_id,
+                "p": self._p,
             }
             _LOGGER.debug("Step: 3")
             async with session.get(url, params=params) as response:
                 response_text = await response.text()
-                csrf_cookie = response.cookies.get('x-ms-cpim-csrf')
+                csrf_cookie = response.cookies.get("x-ms-cpim-csrf")
                 if csrf_cookie is None:
                     _LOGGER.error("CSRF cookie not found in step 3 response")
                     raise RuntimeError("Missing CSRF cookie during login flow")
@@ -94,11 +95,11 @@ class FrankEnergyApi:
             payload = {
                 "request_type": "RESPONSE",
                 "signInName": self._email,
-                "password": self._password
+                "password": self._password,
             }
 
             headers = {
-                'X-CSRF-TOKEN': csrf,
+                "X-CSRF-TOKEN": csrf,
             }
 
             url = f"{self._url_token_base}/{self._p}/SelfAsserted?tx={trans_id}&p={self._p}"
@@ -108,43 +109,47 @@ class FrankEnergyApi:
 
             url = f"{self._url_token_base}/{self._p}/api/CombinedSigninAndSignup/confirmed"
             params = {
-                'rememberMe': 'false',
-                'csrf_token': csrf,
-                'tx': trans_id,
-                'p': self._p
+                "rememberMe": "false",
+                "csrf_token": csrf,
+                "tx": trans_id,
+                "p": self._p,
             }
             headers = {}
             _LOGGER.debug("Step: 5")
-            async with session.get(url, headers=headers, params=params, allow_redirects=False) as response:
+            async with session.get(
+                url, headers=headers, params=params, allow_redirects=False
+            ) as response:
                 response.raise_for_status()
                 response_data = await response.text()
 
-                location = response.headers.get('Location', '')
-                query_params = parse_qs(location.split('?', 1)[1])
-                if 'error' in query_params:
-                    error = query_params['error'][0]
+                location = response.headers.get("Location", "")
+                query_params = parse_qs(location.split("?", 1)[1])
+                if "error" in query_params:
+                    error = query_params["error"][0]
                     _LOGGER.error("Error in response: %s", error)
-                    error_description = query_params['error_description'][0]
-                    _LOGGER.error("Error description in response: %s", error_description)
+                    error_description = query_params["error_description"][0]
+                    _LOGGER.error(
+                        "Error description in response: %s", error_description
+                    )
 
-            code = query_params['code'][0]
+            code = query_params["code"][0]
             url = f"{self._url_token_base}/{self._p}/oauth2/v2.0/token"
             params = {
-                'p': self._p,
-                'grant_type': 'authorization_code',
-                'client_id': self._client_id,
-                'scope': scope,
-                'redirect_uri': self._redirect_uri,
-                'code': code,
+                "p": self._p,
+                "grant_type": "authorization_code",
+                "client_id": self._client_id,
+                "scope": scope,
+                "redirect_uri": self._redirect_uri,
+                "code": code,
             }
 
             headers = {}
             async with session.get(url, headers=headers, params=params) as response:
                 response_data = await response.json()
-                refresh_token = response_data.get('refresh_token')
-                access_token = response_data.get('access_token')
-                refresh_token_expires_in = response_data.get('refresh_token_expires_in')
-                access_token_expires_in = response_data.get('expires_in')
+                refresh_token = response_data.get("refresh_token")
+                access_token = response_data.get("access_token")
+                refresh_token_expires_in = response_data.get("refresh_token_expires_in")
+                access_token_expires_in = response_data.get("expires_in")
 
             self._token = access_token
             self._refresh_token = refresh_token
@@ -173,9 +178,12 @@ class FrankEnergyApi:
                     _LOGGER.error("Failed to retrieve the token page.")
 
     async def get_data(self, start_date: datetime = None, end_date: datetime = None):
-        """Get data from the API. Defaults to last 4 days if no dates given.
+        """Get data from the API.
+
+        Defaults to last 4 days if no dates given.
         Splits requests in 5-day chunks if date range > 5 days.
-        Returns combined dict with 'usage' key containing list of usage entries."""
+        Returns combined dict with 'usage' key containing list of usage entries.
+        """
 
         if start_date is None:
             end_date = datetime.now()
@@ -195,10 +203,10 @@ class FrankEnergyApi:
             await self.get_refresh_token()
 
         headers = {
-            "authorization": "Bearer " + self._token,
+            "authorization": "Bearer " + (self._token or ""),
             "brand-id": "GEOL",
             "platform": "Android",
-            "mobile-build-number": "1"
+            "mobile-build-number": "1",
         }
 
         combined_usage = []
@@ -209,26 +217,34 @@ class FrankEnergyApi:
         jar = aiohttp.CookieJar(quote_cookie=False)
         async with aiohttp.ClientSession(cookie_jar=jar) as session:
             while current_start < end_date:
-                current_end = min(current_start + timedelta(days=chunk_size_days), end_date)
+                current_end = min(
+                    current_start + timedelta(days=chunk_size_days), end_date
+                )
 
                 url = f"{self._url_data_base}/v2/private/usage/electricity/aggregatedSiteUsage/hourly"
                 params = {
-                    'startDate': current_start.strftime("%Y-%m-%d"),
-                    'endDate': current_end.strftime("%Y-%m-%d"),
+                    "startDate": current_start.strftime("%Y-%m-%d"),
+                    "endDate": current_end.strftime("%Y-%m-%d"),
                 }
 
-                _LOGGER.debug(f"Fetching data chunk: {params['startDate']} to {params['endDate']}")
+                _LOGGER.debug(
+                    f"Fetching data chunk: {params['startDate']} to {params['endDate']}"
+                )
 
                 async with session.get(url, headers=headers, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
-                        usage_chunk = data.get('usage', [])
+                        usage_chunk = data.get("usage", [])
                         if usage_chunk:
                             combined_usage.extend(usage_chunk)
                         else:
-                            _LOGGER.warning(f"No usage data in chunk {params['startDate']} to {params['endDate']}")
+                            _LOGGER.warning(
+                                f"No usage data in chunk {params['startDate']} to {params['endDate']}"
+                            )
                     else:
-                        _LOGGER.error(f"Failed to fetch data chunk {params['startDate']} to {params['endDate']}")
+                        _LOGGER.error(
+                            f"Failed to fetch data chunk {params['startDate']} to {params['endDate']}"
+                        )
 
                 current_start = current_end + timedelta(seconds=1)
 

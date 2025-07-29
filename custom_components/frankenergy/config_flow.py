@@ -7,6 +7,7 @@ import voluptuous as vol
 
 from .const import DOMAIN, SENSOR_NAME
 
+
 @config_entries.HANDLERS.register(DOMAIN)
 class FrankEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Define the config flow."""
@@ -29,7 +30,9 @@ class FrankEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_EMAIL, description="Enter your email"): cv.string,
-                    vol.Required(CONF_PASSWORD, description="Enter your password"): cv.string,
+                    vol.Required(
+                        CONF_PASSWORD, description="Enter your password"
+                    ): cv.string,
                 }
             ),
         )
