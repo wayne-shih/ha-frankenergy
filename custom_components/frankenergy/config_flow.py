@@ -30,14 +30,9 @@ class FrankEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_EMAIL, description="Enter your email"): cv.string,
-                    vol.Required(
-                        CONF_PASSWORD, description="Enter your password"
-                    ): cv.string,
-                    vol.Optional(
-                        CONF_START_DATE,
-                        description="Account start date (YYYY-MM-DD) for historical import, leave blank for last 4 days",
-                    ): cv.string,
+                    vol.Required(CONF_EMAIL): cv.string,
+                    vol.Required(CONF_PASSWORD): cv.string,
+                    vol.Optional(CONF_START_DATE): cv.string,
                 }
             ),
         )

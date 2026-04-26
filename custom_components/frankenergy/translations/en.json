@@ -1,0 +1,18 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Frank Energy",
+        "description": "Enter your Frank Energy account credentials.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "start_date": "Data start date (YYYY-MM-DD)"
+        },
+        "data_description": {
+          "start_date": "Optional. How far back to import historical energy data on first run. Leave blank to import the last 4 days only."
+        }
+      }
+    }
+  }
+}
