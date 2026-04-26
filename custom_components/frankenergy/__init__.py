@@ -15,6 +15,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
     email = entry.data.get("email")
     password = entry.data.get("password")
+    start_date = entry.data.get("start_date", "")
 
     api = FrankEnergyApi(email, password)
 
@@ -24,6 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN] = {}
 
     hass.data[DOMAIN]["api"] = api
+    hass.data[DOMAIN]["start_date"] = start_date
 
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
 

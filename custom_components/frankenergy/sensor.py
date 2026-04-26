@@ -35,13 +35,14 @@ async def async_setup_entry(
         return False
 
     api = hass.data[DOMAIN]["api"]
-    async_add_entities([FrankEnergyUsageSensor(SENSOR_NAME, api)], True)
+    start_date = hass.data[DOMAIN].get("start_date", "")
+    async_add_entities([FrankEnergyUsageSensor(SENSOR_NAME, api, start_date)], True)
 
 
 class FrankEnergyUsageSensor(SensorEntity):
     """Define Frank Energy Usage sensor."""
 
-    def __init__(self, name, api):
+    def __init__(self, name, api, start_date=""):
         """Initialize Frank Energy Usage sensor."""
         self.hass = None  # will be set by HA automatically later
         self._name = name
@@ -55,6 +56,7 @@ class FrankEnergyUsageSensor(SensorEntity):
         self._state_attributes = {}
         self._api = api
         self._first_run = True
+        self._start_date = start_date
         self._consumption_sensor_id = f"{DOMAIN}:energy_consumption_daily"
         self._consumption_sensor_name = f"{DOMAIN} energy_consumption_daily"
         self._cost_sensor_id = f"{DOMAIN}:energy_cost_daily"
@@ -109,10 +111,16 @@ class FrankEnergyUsageSensor(SensorEntity):
         """Fetch new state data for the sensor."""
         _LOGGER.debug("Beginning sensor update")
         if self._first_run:
-            # On first run, pull up to 365 days of historical data
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=365)
-            _LOGGER.info("First run detected, fetching up to 365 days of historical data")
+            if self._start_date:
+                try:
+                    start_date = datetime.strptime(self._start_date, "%Y-%m-%d")
+                    _LOGGER.info("First run: fetching historical data from %s", self._start_date)
+                except ValueError:
+                    _LOGGER.warning("Invalid start_date '%s', falling back to last 4 days", self._start_date)
+                    start_date = end_date - timedelta(days=4)
+            else:
+                start_date = end_date - timedelta(days=4)
             response = await self._api.get_data(start_date=start_date, end_date=end_date)
             self._first_run = False
         else:
