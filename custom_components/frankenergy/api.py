@@ -16,7 +16,7 @@ class FrankEnergyApi:
 
     def __init__(self, email, password):
         """Initialise the API."""
-        _LOGGER.warning("__init__")
+        _LOGGER.debug("__init__")
         self._client_id = "9b63be56-54d0-4706-bfb5-69707d4f4f89"
         self._redirect_uri = "eol://oauth/redirect"
         self._url_token_base = "https://energyonlineb2cprod.b2clogin.com/energyonlineb2cprod.onmicrosoft.com"
@@ -29,8 +29,8 @@ class FrankEnergyApi:
         self._accountNumber = None
         self._token = None
         self._refresh_token = None
-        self._refresh_token_expires_in = 0
-        self._access_token_expires_in = 0
+        self._refresh_token_expiry = datetime.min
+        self._access_token_expiry = datetime.min
 
     def get_setting_json(self, page: str) -> Mapping[str, Any] | None:
         """Get the settings from json result."""
@@ -153,8 +153,8 @@ class FrankEnergyApi:
 
             self._token = access_token
             self._refresh_token = refresh_token
-            self._refresh_token_expires_in = refresh_token_expires_in
-            self._access_token_expires_in = access_token_expires_in
+            self._refresh_token_expiry = datetime.now() + timedelta(seconds=refresh_token_expires_in or 0)
+            self._access_token_expiry = datetime.now() + timedelta(seconds=access_token_expires_in or 0)
             _LOGGER.debug("Refresh token retrieved successfully")
 
     async def get_api_token(self):
@@ -173,7 +173,9 @@ class FrankEnergyApi:
                 if response.status == 200:
                     jsonResult = await response.json()
                     self._token = jsonResult["access_token"]
-                    _LOGGER.debug(f"Auth Token: {self._token}")
+                    expires_in = jsonResult.get("expires_in", 0)
+                    self._access_token_expiry = datetime.now() + timedelta(seconds=expires_in)
+                    _LOGGER.debug("Access token refreshed successfully")
                 else:
                     _LOGGER.error("Failed to retrieve the token page.")
 
@@ -192,15 +194,14 @@ class FrankEnergyApi:
             end_date = datetime.now()
 
         # Renew tokens if needed
-        access_token_threshold = timedelta(minutes=5).total_seconds()
-        if self._access_token_expires_in <= access_token_threshold:
-            _LOGGER.warning("Access token needs renewing")
-            await self.get_api_token()
-
-        refresh_token_threshold = timedelta(minutes=5).total_seconds()
-        if self._refresh_token_expires_in <= refresh_token_threshold:
-            _LOGGER.warning("Refresh token needs renewing")
+        now = datetime.now()
+        token_buffer = timedelta(minutes=5)
+        if self._refresh_token_expiry <= now + token_buffer:
+            _LOGGER.debug("Refresh token needs renewing")
             await self.get_refresh_token()
+        elif self._access_token_expiry <= now + token_buffer:
+            _LOGGER.debug("Access token needs renewing")
+            await self.get_api_token()
 
         headers = {
             "authorization": "Bearer " + (self._token or ""),

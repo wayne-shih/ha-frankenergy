@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
+from homeassistant.components.recorder.models import StatisticData, StatisticMetaData, StatisticMeanType
 from homeassistant.components.recorder.util import get_instance
 from homeassistant.components.recorder.statistics import (
     async_add_external_statistics,
@@ -54,6 +54,7 @@ class FrankEnergyUsageSensor(SensorEntity):
         self._last_reset = None
         self._state_attributes = {}
         self._api = api
+        self._first_run = True
         self._consumption_sensor_id = f"{DOMAIN}:energy_consumption_daily"
         self._consumption_sensor_name = f"{DOMAIN} energy_consumption_daily"
         self._cost_sensor_id = f"{DOMAIN}:energy_cost_daily"
@@ -107,7 +108,15 @@ class FrankEnergyUsageSensor(SensorEntity):
     async def async_update(self):
         """Fetch new state data for the sensor."""
         _LOGGER.debug("Beginning sensor update")
-        response = await self._api.get_data()
+        if self._first_run:
+            # On first run, pull up to 365 days of historical data
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=365)
+            _LOGGER.info("First run detected, fetching up to 365 days of historical data")
+            response = await self._api.get_data(start_date=start_date, end_date=end_date)
+            self._first_run = False
+        else:
+            response = await self._api.get_data()
         if not response:
             _LOGGER.warning("No sensor data available, skipping processing")
             return
@@ -209,12 +218,13 @@ class FrankEnergyUsageSensor(SensorEntity):
 
         if kw_statistics:
             kw_metadata = StatisticMetaData(
-                has_mean=False,
+                mean_type=StatisticMeanType.NONE,
                 has_sum=True,
                 name=self._consumption_sensor_name,
                 source=DOMAIN,
                 statistic_id=self._consumption_sensor_id,
                 unit_of_measurement=self._unit_of_measurement,
+                unit_class=None,
             )
             _LOGGER.debug(f"kw statistics: {kw_statistics}")
             async_add_external_statistics(self.hass, kw_metadata, kw_statistics)
@@ -225,12 +235,13 @@ class FrankEnergyUsageSensor(SensorEntity):
 
         if cost_statistics:
             cost_metadata = StatisticMetaData(
-                has_mean=False,
+                mean_type=StatisticMeanType.NONE,
                 has_sum=True,
                 name=self._cost_sensor_name,
                 source=DOMAIN,
                 statistic_id=self._cost_sensor_id,
                 unit_of_measurement=self._unit_of_measurement,
+                unit_class=None,
             )
             _LOGGER.debug(f"Cost statistics: {cost_statistics}")
             async_add_external_statistics(self.hass, cost_metadata, cost_statistics)
